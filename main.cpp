@@ -33,9 +33,9 @@ typedef struct {
 	uint16_t target2;
 	uint16_t target3;
 
-	uint16_t err1;
-	uint16_t err2;
-	uint16_t err3;
+	float err1;
+	float err2;
+	float err3;
 } mcu_msg_t;
 #pragma pack(pop)
 
@@ -135,43 +135,34 @@ class Sine : public ControlBase
 		double ki2;
 		double ki3;
 
-		double key_a;
-		double key_s;
 
 		// ----- Variables -----
 		QByteArray uart_buf;
 		std::mutex uart_mcu_mutex; //lock for mcu_msg;
-		std::mutex uart_dac_mutex; //lock for dac_update and dac_msg
 		std::thread uart_thread; //don't use state, uart, uart_buf outside of thread
 		//thread variables
 		int state;
 		int uart_file;
 		//shared variable
-		bool dac_update;
-		zenom_msg_t dac_msg;
+		zenom_msg_t znm_msg;
 		mcu_msg_t mcu_msg;
 
 		void uart_work();
+		void send_znm_msg();
 
 };
+
+void Sine::send_znm_msg(){
+	uint8_t data[sizeof(zenom_msg_t)] = {0};
+	memcpy(data, (void*)&znm_msg, sizeof(zenom_msg_t));
+	write(uart_file, data, sizeof(zenom_msg_t));
+}
 
 void Sine::uart_work(){
 	std::cout << "hello from thread!" << std::endl;
 	char buff[256];
 	int read_size = 0;
 	while(1){
-		//write to mcu
-		uart_dac_mutex.lock();
-		if(dac_update){
-			uint8_t data[256] = {0};
-			memcpy(data, (void*)&dac_msg, sizeof(zenom_msg_t));
-			write(uart_file, data, sizeof(zenom_msg_t));
-			dac_update = false;
-			//std::cout << "u" << std::endl;
-		}
-		uart_dac_mutex.unlock();
-		//----
-
 		//read from mcu
 		read_size = read(uart_file, buff, sizeof(mcu_msg_t));
 		uart_buf.append(buff, read_size);
@@ -179,15 +170,15 @@ void Sine::uart_work(){
 
 			//parse received data
 			if((uint8_t)(uart_buf.at(0)) == 0xCD && (uint8_t)(uart_buf.at(1)) == 0xAB){
-				//std::cout << "data:'" << QString(uart_buf.toHex().toUpper()).toStdString() << "'"  << uart_buf.size() << " "  << sizeof(mcu_msg_t) << std::endl;
 				uart_mcu_mutex.lock();
 				memcpy((void*)&mcu_msg, uart_buf.data(), sizeof(mcu_msg_t));
 				uart_mcu_mutex.unlock();
+				std::cout << ".";
 				uart_buf.remove(0, sizeof(mcu_msg_t));
 
 			} else {
-				std::cout << "error:" << uart_buf.at(0) << " " << uart_buf.at(1) << std::endl;
-				uart_buf.remove(0, 2);
+				std::cout << "*";
+				uart_buf.remove(0, 1);
 
 			}
 		}
@@ -246,18 +237,12 @@ int Sine::initialize()
 	registerControlVariable(&ki2, "ki2");
 	registerControlVariable(&ki3, "ki3");
 
-	registerControlVariable(&key_a, "key_a");
-	key_a = 0;
-	registerControlVariable(&key_s, "key_s");
-	key_s = 0;
-
 	state = 0;
-	dac_msg.sync = 0xABCD;
+	znm_msg.sync = 0xABCD;
 	uart_file = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY );
 	set_interface_attribs(uart_file, B460800, 0);
 
 	uart_thread = std::thread(&Sine::uart_work, this);
-	dac_update = false;
 
 	// ----- Prints message in screen -----
 	std::cout
@@ -277,10 +262,8 @@ int Sine::initialize()
  */
 int Sine::start()
 {
-	uart_dac_mutex.lock();
-	dac_msg.stop = 0;
-	dac_update = true;
-	uart_dac_mutex.unlock();
+	znm_msg.stop = 0;
+	send_znm_msg();
 
 	return 0;
 }
@@ -319,23 +302,21 @@ int Sine::doloop()
 	uart_mcu_mutex.unlock();
 
 
-	uart_dac_mutex.lock();
-	dac_msg.kp1 = (uint16_t)(kp1/10.0f);
-	dac_msg.kp2 = (uint16_t)(kp2/10.0f);
-	dac_msg.kp3 = (uint16_t)(kp3/10.0f);
+	znm_msg.kp1 = (uint16_t)(kp1*100.0f);
+	znm_msg.kp2 = (uint16_t)(kp2*100.0f);
+	znm_msg.kp3 = (uint16_t)(kp3*100.0f);
 
-	dac_msg.kd1 = (uint16_t)(kd1/10.0f);
-	dac_msg.kd2 = (uint16_t)(kd2/10.0f);
-	dac_msg.kd3 = (uint16_t)(kd3/10.0f);
+	znm_msg.kd1 = (uint16_t)(kd1*100.0f);
+	znm_msg.kd2 = (uint16_t)(kd2*100.0f);
+	znm_msg.kd3 = (uint16_t)(kd3*100.0f);
 
-	dac_msg.ki1 = (uint16_t)(ki1/10.0f);
-	dac_msg.ki2 = (uint16_t)(ki2/10.0f);
-	dac_msg.ki3 = (uint16_t)(ki3/10.0f);
+	znm_msg.ki1 = (uint16_t)(ki1*100.0f);
+	znm_msg.ki2 = (uint16_t)(ki2*100.0f);
+	znm_msg.ki3 = (uint16_t)(ki3*100.0f);
 
-	dac_msg.stop = 0;
-	dac_update = true;
+	znm_msg.stop = 0;
 
-	uart_dac_mutex.unlock();
+	send_znm_msg();
 
 	return 0;
 }
@@ -349,10 +330,8 @@ int Sine::doloop()
 int Sine::stop()
 {
 
-	uart_dac_mutex.lock();
-	dac_msg.stop = 1;
-	dac_update = true;
-	uart_dac_mutex.unlock();
+	znm_msg.stop = 1;
+	send_znm_msg();
 
 	return 0;
 }
@@ -368,10 +347,8 @@ int Sine::terminate()
 {
 
 
-	uart_dac_mutex.lock();
-	dac_msg.stop = 1;
-	dac_update = true;
-	uart_dac_mutex.unlock();
+	znm_msg.stop = 1;
+	send_znm_msg();
 
 	uart_thread.join();
 	close(uart_file);
