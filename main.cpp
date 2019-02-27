@@ -23,15 +23,16 @@
 
 #pragma pack(push, 1)
 typedef struct {
-	uint16_t sync;
+	uint16_t sync1;
+	uint16_t sync2;
 
-	uint16_t tim1;
-	uint16_t tim2;
-	uint16_t tim3;
+	float tim1;
+	float tim2;
+	float tim3;
 
-	uint16_t target1;
-	uint16_t target2;
-	uint16_t target3;
+	float target1;
+	float target2;
+	float target3;
 
 	float err1;
 	float err2;
@@ -43,17 +44,17 @@ typedef struct {
 typedef struct {
 	uint16_t sync;
 
-	uint16_t kp1;
-	uint16_t kp2;
-	uint16_t kp3;
+	float kp1;
+	float kp2;
+	float kp3;
 
-	uint16_t kd1;
-	uint16_t kd2;
-	uint16_t kd3;
+	float kd1;
+	float kd2;
+	float kd3;
 
-	uint16_t ki1;
-	uint16_t ki2;
-	uint16_t ki3;
+	float ki1;
+	float ki2;
+	float ki3;
 
 	uint16_t stop;
 } zenom_msg_t;
@@ -64,7 +65,7 @@ int set_interface_attribs (int fd, int speed, int parity) {
 	struct termios tty;
 	if (tcgetattr (fd, &tty) != 0)
 	{
-		printf ("error %d from tcgetattr", errno);
+		printf ("error %d from tcgetattr: %s\n", errno, strerror(errno));
 		return -1;
 	}
 
@@ -87,10 +88,18 @@ int set_interface_attribs (int fd, int speed, int parity) {
 	tty.c_cc[VTIME] = 0;
 	if (tcsetattr (fd, TCSANOW, &tty) != 0)
 	{
-		printf ("error %d from tcsetattr", errno);
+		printf ("error %d from tcsetattr: %s\n", errno, strerror(errno));
 		return -1;
 	}
 	return 0;
+}
+
+double radian_to_angle(double rad){
+	return rad/3.14*180.0;
+}
+
+double angle_to_radian(double angle){
+	return angle/180.0*3.14;
 }
 
 class Sine : public ControlBase
@@ -169,7 +178,8 @@ void Sine::uart_work(){
 		while(uart_buf.size() >= sizeof(mcu_msg_t)){
 
 			//parse received data
-			if((uint8_t)(uart_buf.at(0)) == 0xCD && (uint8_t)(uart_buf.at(1)) == 0xAB){
+			if((uint8_t)(uart_buf.at(0)) == 0xCD && (uint8_t)(uart_buf.at(1)) == 0xAB &&
+				(uint8_t)(uart_buf.at(2)) == 0xAA && (uint8_t)(uart_buf.at(3)) == 0xEF){
 				uart_mcu_mutex.lock();
 				memcpy((void*)&mcu_msg, uart_buf.data(), sizeof(mcu_msg_t));
 				uart_mcu_mutex.unlock();
@@ -240,7 +250,7 @@ int Sine::initialize()
 	state = 0;
 	znm_msg.sync = 0xABCD;
 	uart_file = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY );
-	set_interface_attribs(uart_file, B460800, 0);
+	set_interface_attribs(uart_file, B921600, 0);
 
 	uart_thread = std::thread(&Sine::uart_work, this);
 
@@ -288,31 +298,31 @@ int Sine::start()
 int Sine::doloop()
 {
 	uart_mcu_mutex.lock();
-	tim1 = mcu_msg.tim1;
-	tim2 = mcu_msg.tim2;
-	tim3 = mcu_msg.tim3;
+	tim1 = radian_to_angle(mcu_msg.tim1);
+	tim2 = radian_to_angle(mcu_msg.tim2);
+	tim3 = radian_to_angle(mcu_msg.tim3);
 
-	target1 = mcu_msg.target1;
-	target2 = mcu_msg.target2;
-	target3 = mcu_msg.target3;
+	target1 = radian_to_angle(mcu_msg.target1);
+	target2 = radian_to_angle(mcu_msg.target2);
+	target3 = radian_to_angle(mcu_msg.target3);
 
-	err1 = mcu_msg.err1;
-	err2 = mcu_msg.err2;
-	err3 = mcu_msg.err3;
+	err1 = radian_to_angle(mcu_msg.err1);
+	err2 = radian_to_angle(mcu_msg.err2);
+	err3 = radian_to_angle(mcu_msg.err3);
 	uart_mcu_mutex.unlock();
 
 
-	znm_msg.kp1 = (uint16_t)(kp1*100.0f);
-	znm_msg.kp2 = (uint16_t)(kp2*100.0f);
-	znm_msg.kp3 = (uint16_t)(kp3*100.0f);
+	znm_msg.kp1 = kp1;
+	znm_msg.kp2 = kp2;
+	znm_msg.kp3 = kp3;
 
-	znm_msg.kd1 = (uint16_t)(kd1*100.0f);
-	znm_msg.kd2 = (uint16_t)(kd2*100.0f);
-	znm_msg.kd3 = (uint16_t)(kd3*100.0f);
+	znm_msg.kd1 = kd1;
+	znm_msg.kd2 = kd2;
+	znm_msg.kd3 = kd3;
 
-	znm_msg.ki1 = (uint16_t)(ki1*100.0f);
-	znm_msg.ki2 = (uint16_t)(ki2*100.0f);
-	znm_msg.ki3 = (uint16_t)(ki3*100.0f);
+	znm_msg.ki1 = ki1;
+	znm_msg.ki2 = ki2;
+	znm_msg.ki3 = ki3;
 
 	znm_msg.stop = 0;
 
