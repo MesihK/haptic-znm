@@ -26,39 +26,105 @@ typedef struct {
 	uint16_t sync1;
 	uint16_t sync2;
 
-	float tim1;
-	float tim2;
-	float tim3;
-
-	float target1;
-	float target2;
-	float target3;
-
-	float err1;
-	float err2;
-	float err3;
+	uint16_t tim1;
+	uint16_t tim2;
+	uint16_t tim3;
 } mcu_msg_t;
-#pragma pack(pop)
 
-#pragma pack(push, 1)
 typedef struct {
 	uint16_t sync;
 
-	float kp1;
-	float kp2;
-	float kp3;
+	float dac1;
+	float dac2;
+	float dac3;
 
-	float kd1;
-	float kd2;
-	float kd3;
-
-	float ki1;
-	float ki2;
-	float ki3;
+	float curr1;
+	float curr2;
+	float curr3;
 
 	uint16_t stop;
 } zenom_msg_t;
+
+typedef struct{
+	uint16_t sync;
+
+	uint16_t enc1;
+	uint16_t enc2;
+	uint16_t enc3;
+} enc_msg_t;
 #pragma pack(pop)
+
+#define eps (3.14/1800)
+#define INTEGRAL_LIMIT 5
+typedef struct {
+	int enc;
+	float err;
+	float integral;
+	uint32_t time;
+	float kp;
+	float ki;
+	float kd;
+} pid_param;
+
+float pulse_to_radian(uint16_t pulse, pid_param pid){
+	return (float)(pulse)/(float)(pid.enc)*3.14*2;
+}
+
+float angle_to_radian(float angle){
+	return (fmod(angle,360.0))/180.0*3.14;
+}
+
+float radian_to_angle(float rad){
+	return fmod(rad/3.14*180.0,360.0);
+}
+
+float pulse_to_angle(uint16_t pulse, pid_param pid){
+	return radian_to_angle(pulse_to_radian(pulse, pid));
+}
+
+float pid(float target, float curr, pid_param *param, float t){
+	int dir = 1;
+	float err, d1, d2 = 0;
+	float d;
+	float out;
+	float dt = (float)(t - param->time) / 1000; //time diff in sec.
+	//printf("sm %6d, lt %6d, le: %f", system_millis, param->time, param->err);
+	param->time = t;
+
+	d1 = target - curr;
+	d2 = d1 + 2*3.14;
+	if(fabs(d2) >= fabs(d1)){
+		dir = 1;
+		err = d1;
+	}
+	else {
+		err = d2;
+		dir = -1;
+	}
+
+	//err = err / param->enc;
+	if(fabs(err) > eps){
+		param->integral = param->integral + err*dt;
+
+		if(param->integral > INTEGRAL_LIMIT) param->integral = INTEGRAL_LIMIT;
+		if(param->integral < -1*INTEGRAL_LIMIT) param->integral = -1*INTEGRAL_LIMIT;
+	}
+	if(dt != 0){
+		d = (err - param->err) / dt;
+	} else {
+		d = 0;
+	}
+
+	out = err*param->kp + param->integral*param->ki + param->kd*d; 
+	//out = out * (float)dir;
+
+	//printf(" t: %5d, c: %5d, e:%8.5f, i:%8.5f, d:%8.5f, o: %6.2f m: %4d dt: %7.3f\r\n",
+	//		target, curr, err, param->integral, d, out, vout_to_dac(out), dt);
+
+	param->err = err;
+
+	return out;
+}
 
 int set_interface_attribs (int fd, int speed, int parity) {
 
@@ -129,7 +195,9 @@ class Sine : public ControlBase
 		double err2;
 		double err3;
 
-
+		double t_err1;
+		double t_err2;
+		double t_err3;
 
 		// ----- Control Parameters -----
 		double kp1;
@@ -144,6 +212,14 @@ class Sine : public ControlBase
 		double ki2;
 		double ki3;
 
+		double enc1;
+		double enc2;
+		double enc3;
+
+		double curr1;
+		double curr2;
+		double curr3;
+
 
 		// ----- Variables -----
 		QByteArray uart_buf;
@@ -155,16 +231,37 @@ class Sine : public ControlBase
 		//shared variable
 		zenom_msg_t znm_msg;
 		mcu_msg_t mcu_msg;
+		enc_msg_t enc_msg;
 
 		void uart_work();
 		void send_znm_msg();
+		void send_enc_msg();
 
+		pid_param pid1;
+		pid_param pid2;
+		pid_param pid3;
+
+		double angle;
 };
 
 void Sine::send_znm_msg(){
+	znm_msg.curr1 = curr1;
+	znm_msg.curr2 = curr2;
+	znm_msg.curr3 = curr3;
+
 	uint8_t data[sizeof(zenom_msg_t)] = {0};
 	memcpy(data, (void*)&znm_msg, sizeof(zenom_msg_t));
 	write(uart_file, data, sizeof(zenom_msg_t));
+}
+void Sine::send_enc_msg(){
+	enc_msg.sync = 0xACEF;
+	enc_msg.enc1 = enc1;
+	enc_msg.enc2 = enc2;
+	enc_msg.enc3 = enc3;
+
+	uint8_t data[sizeof(enc_msg_t)] = {0};
+	memcpy(data, (void*)&enc_msg, sizeof(enc_msg_t));
+	write(uart_file, data, sizeof(enc_msg_t));
 }
 
 void Sine::uart_work(){
@@ -230,10 +327,13 @@ int Sine::initialize()
 	registerLogVariable(&target2, "target2");
 	registerLogVariable(&target3, "target3");
 
-	registerLogVariable(&err1, "err1");
-	registerLogVariable(&err2, "err2");
-	registerLogVariable(&err3, "err3");
+	registerLogVariable(&err1, "V1");
+	registerLogVariable(&err2, "V2");
+	registerLogVariable(&err3, "V3");
 
+	registerLogVariable(&t_err1, "t_err1");
+	registerLogVariable(&t_err2, "t_err2");
+	registerLogVariable(&t_err3, "t_err3");
 	// ----- Register the control paramateres -----
 	registerControlVariable(&kp1, "kp1");
 	registerControlVariable(&kp2, "kp2");
@@ -246,6 +346,43 @@ int Sine::initialize()
 	registerControlVariable(&ki1, "ki1");
 	registerControlVariable(&ki2, "ki2");
 	registerControlVariable(&ki3, "ki3");
+
+	enc1 = 4096-512;
+	enc2 = 4096-512;
+	enc3 = 4096-512;
+	registerControlVariable(&enc1, "enc1");
+	registerControlVariable(&enc2, "enc2");
+	registerControlVariable(&enc3, "enc3");
+
+	registerControlVariable(&curr1, "curr1");
+	registerControlVariable(&curr2, "curr2");
+	registerControlVariable(&curr3, "curr3");
+
+	pid1 = {};
+	pid2 = {};
+	pid3 = {};
+
+	pid1.enc = enc1;
+	pid2.enc = enc2;
+	pid3.enc = enc3;
+
+	pid1.kp = 7.0f;
+	pid1.kd = 1.0f;
+	pid1.ki = 20.0f;
+
+	pid2.kp = 7.0f;
+	pid2.kd = 1.0f;
+	pid2.ki = 20.0f;
+
+	pid3.kp = 7.0f;
+	pid3.kd = 1.0f;
+	pid3.ki = 20.0f;
+
+	angle = 0;
+
+	curr1 = 3;
+	curr2 = 3;
+	curr3 = 3;
 
 	state = 0;
 	znm_msg.sync = 0xABCD;
@@ -274,6 +411,7 @@ int Sine::start()
 {
 	znm_msg.stop = 0;
 	send_znm_msg();
+	send_enc_msg();
 
 	return 0;
 }
@@ -297,32 +435,39 @@ int Sine::start()
  */
 int Sine::doloop()
 {
+	angle += 0.2f;
+	angle = fmod(angle, 360.0);
+
+	target1 = angle_to_radian(sin(angle_to_radian(angle))*15) + angle_to_radian(15.0f);
+	target2 = angle_to_radian(sin(angle_to_radian(angle))*15) + angle_to_radian(15.0f);
+	target3 = angle_to_radian(sin(angle_to_radian(angle))*15) + angle_to_radian(15.0f);
+
 	uart_mcu_mutex.lock();
-	tim1 = radian_to_angle(mcu_msg.tim1);
-	tim2 = radian_to_angle(mcu_msg.tim2);
-	tim3 = radian_to_angle(mcu_msg.tim3);
+	tim1 = pulse_to_radian(enc1 - mcu_msg.tim1, pid1);
+	tim2 = pulse_to_radian(enc2 - mcu_msg.tim2, pid2);
+	tim3 = pulse_to_radian(enc3 - mcu_msg.tim3, pid3);
 
-	target1 = radian_to_angle(mcu_msg.target1);
-	target2 = radian_to_angle(mcu_msg.target2);
-	target3 = radian_to_angle(mcu_msg.target3);
+	znm_msg.dac1 = -1 * pid(target1, tim1, &pid1, elapsedTime());
+	znm_msg.dac2 = -1 * pid(target2, tim2, &pid2, elapsedTime());
+	znm_msg.dac3 = -1 * pid(target3, tim3, &pid3, elapsedTime());
 
-	err1 = radian_to_angle(mcu_msg.err1);
-	err2 = radian_to_angle(mcu_msg.err2);
-	err3 = radian_to_angle(mcu_msg.err3);
+
+	tim1 = radian_to_angle(pulse_to_radian(enc1 - mcu_msg.tim1, pid1));
+	tim2 = radian_to_angle(pulse_to_radian(enc2 - mcu_msg.tim2, pid2));
+	tim3 = radian_to_angle(pulse_to_radian(enc3 - mcu_msg.tim3, pid3));
+
+	target1 = radian_to_angle(target1);
+	target2 = radian_to_angle(target2);
+	target3 = radian_to_angle(target3);
+
+	err1 = pid1.err;
+	err2 = pid2.err;
+	err3 = pid3.err;
 	uart_mcu_mutex.unlock();
 
-
-	znm_msg.kp1 = kp1;
-	znm_msg.kp2 = kp2;
-	znm_msg.kp3 = kp3;
-
-	znm_msg.kd1 = kd1;
-	znm_msg.kd2 = kd2;
-	znm_msg.kd3 = kd3;
-
-	znm_msg.ki1 = ki1;
-	znm_msg.ki2 = ki2;
-	znm_msg.ki3 = ki3;
+	t_err1 = target1 - tim1;
+	t_err2 = target2 - tim2;
+	t_err3 = target3 - tim3;
 
 	znm_msg.stop = 0;
 
