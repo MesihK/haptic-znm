@@ -179,6 +179,7 @@ class Sine : public ControlBase
 		int stop();
 		int terminate();
 		uint16_t vout_to_dac(float);
+		float v_to_dac_v(float v);
 
 	private:
 		// ----- Log Variables -----
@@ -191,9 +192,9 @@ class Sine : public ControlBase
 		double target2;
 		double target3;
 
-		double err1;
-		double err2;
-		double err3;
+		double v1;
+		double v2;
+		double v3;
 
 		double t_err1;
 		double t_err2;
@@ -308,6 +309,12 @@ uint16_t Sine::vout_to_dac(float v){
 	return (uint16_t)((dac/5.0f)*4095.0f);
 }
 
+float Sine::v_to_dac_v(float v){
+	if(v < -11.96) v = -11.96;
+	if(v > 11.54) v = 11.54;
+	return v;
+}
+
 /**
  * This function is called when the control program is loaded to zenom.
  * Use this function to register control parameters, to register log variables
@@ -327,9 +334,9 @@ int Sine::initialize()
 	registerLogVariable(&target2, "target2");
 	registerLogVariable(&target3, "target3");
 
-	registerLogVariable(&err1, "V1");
-	registerLogVariable(&err2, "V2");
-	registerLogVariable(&err3, "V3");
+	registerLogVariable(&v1, "V1");
+	registerLogVariable(&v2, "V2");
+	registerLogVariable(&v3, "V3");
 
 	registerLogVariable(&t_err1, "t_err1");
 	registerLogVariable(&t_err2, "t_err2");
@@ -435,12 +442,24 @@ int Sine::start()
  */
 int Sine::doloop()
 {
+	pid1.kp = kp1;
+	pid2.kp = kp2;
+	pid3.kp = kp3;
+
+	pid1.kd = kd1;
+	pid2.kd = kd2;
+	pid3.kd = kd3;
+
+	pid1.ki = ki1;
+	pid2.ki = ki2;
+	pid3.ki = ki3;
+
 	angle += 0.2f;
 	angle = fmod(angle, 360.0);
 
-	target1 = angle_to_radian(sin(angle_to_radian(angle))*15) + angle_to_radian(15.0f);
-	target2 = angle_to_radian(sin(angle_to_radian(angle))*15) + angle_to_radian(15.0f);
-	target3 = angle_to_radian(sin(angle_to_radian(angle))*15) + angle_to_radian(15.0f);
+	target1 = angle_to_radian(sin(angle_to_radian(angle))*15) + angle_to_radian(18.0f);
+	target2 = angle_to_radian(sin(angle_to_radian(angle))*15) + angle_to_radian(18.0f);
+	target3 = angle_to_radian(sin(angle_to_radian(angle))*15) + angle_to_radian(18.0f);
 
 	uart_mcu_mutex.lock();
 	tim1 = pulse_to_radian(enc1 - mcu_msg.tim1, pid1);
@@ -460,9 +479,16 @@ int Sine::doloop()
 	target2 = radian_to_angle(target2);
 	target3 = radian_to_angle(target3);
 
-	err1 = pid1.err;
-	err2 = pid2.err;
-	err3 = pid3.err;
+	/*
+	v1 = pid1.err;
+	v2 = pid2.err;
+	v3 = pid3.err;
+	*/
+
+	v1 = v_to_dac_v(znm_msg.dac1);
+	v2 = v_to_dac_v(znm_msg.dac2);
+	v3 = v_to_dac_v(znm_msg.dac3);
+
 	uart_mcu_mutex.unlock();
 
 	t_err1 = target1 - tim1;
