@@ -60,7 +60,7 @@ typedef struct {
 	int enc;
 	float err;
 	float integral;
-	uint32_t time;
+	float time;
 	float kp;
 	float ki;
 	float kd;
@@ -87,8 +87,8 @@ float pid(float target, float curr, pid_param *param, float t){
 	float err, d1, d2 = 0;
 	float d;
 	float out;
-	float dt = (float)(t - param->time) / 1000; //time diff in sec.
-	//printf("sm %6d, lt %6d, le: %f", system_millis, param->time, param->err);
+	float dt = (float)(t - param->time); //time diff in sec.
+	//printf("t %f, pt %f, dt:%f, le: %f\n", t, param->time, dt, param->err);
 	param->time = t;
 
 	d1 = target - curr;
@@ -109,7 +109,7 @@ float pid(float target, float curr, pid_param *param, float t){
 		if(param->integral > INTEGRAL_LIMIT) param->integral = INTEGRAL_LIMIT;
 		if(param->integral < -1*INTEGRAL_LIMIT) param->integral = -1*INTEGRAL_LIMIT;
 	}
-	if(dt != 0){
+	if(dt > 0){
 		d = (err - param->err) / dt;
 	} else {
 		d = 0;
@@ -277,7 +277,7 @@ void Sine::uart_work(){
 
 			//parse received data
 			if((uint8_t)(uart_buf.at(0)) == 0xCD && (uint8_t)(uart_buf.at(1)) == 0xAB &&
-				(uint8_t)(uart_buf.at(2)) == 0xAA && (uint8_t)(uart_buf.at(3)) == 0xEF){
+					(uint8_t)(uart_buf.at(2)) == 0xAA && (uint8_t)(uart_buf.at(3)) == 0xEF){
 				uart_mcu_mutex.lock();
 				memcpy((void*)&mcu_msg, uart_buf.data(), sizeof(mcu_msg_t));
 				uart_mcu_mutex.unlock();
@@ -492,8 +492,11 @@ int Sine::doloop()
 	uart_mcu_mutex.unlock();
 
 	t_err1 = target1 - tim1;
+	if(fabs(t_err1) > fabs(t_err1+360)) t_err1+=360;
 	t_err2 = target2 - tim2;
+	if(fabs(t_err2) > fabs(t_err2+360)) t_err2+=360;
 	t_err3 = target3 - tim3;
+	if(fabs(t_err3) > fabs(t_err3+360)) t_err3+=360;
 
 	znm_msg.stop = 0;
 
