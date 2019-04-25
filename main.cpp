@@ -20,6 +20,7 @@
 #include <QFile>
 #include <thread>
 #include <mutex>
+#define pi 3.141592653
 
 #pragma pack(push, 1)
 typedef struct {
@@ -54,8 +55,8 @@ typedef struct{
 } enc_msg_t;
 #pragma pack(pop)
 
-#define eps (3.14/1800)
-#define INTEGRAL_LIMIT 5
+#define eps (pi/1800)
+#define INTEGRAL_LIMIT 10
 typedef struct {
 	int enc;
 	float err;
@@ -67,15 +68,15 @@ typedef struct {
 } pid_param;
 
 float pulse_to_radian(uint16_t pulse, pid_param pid){
-	return (float)(pulse)/(float)(pid.enc)*3.14*2;
+	return (float)(pulse)/(float)(pid.enc)*pi*2;
 }
 
 float angle_to_radian(float angle){
-	return (fmod(angle,360.0))/180.0*3.14;
+	return (fmod(angle,360.0))/180.0*pi;
 }
 
 float radian_to_angle(float rad){
-	return fmod(rad/3.14*180.0,360.0);
+	return fmod(rad/pi*180.0,360.0);
 }
 
 float pulse_to_angle(uint16_t pulse, pid_param pid){
@@ -92,7 +93,7 @@ float pid(float target, float curr, pid_param *param, float t){
 	param->time = t;
 
 	d1 = target - curr;
-	d2 = d1 + 2*3.14;
+	d2 = d1 + 2*pi;
 	if(fabs(d2) >= fabs(d1)){
 		dir = 1;
 		err = d1;
@@ -161,11 +162,11 @@ int set_interface_attribs (int fd, int speed, int parity) {
 }
 
 double radian_to_angle(double rad){
-	return rad/3.14*180.0;
+	return rad/pi*180.0;
 }
 
 double angle_to_radian(double angle){
-	return angle/180.0*3.14;
+	return angle/180.0*pi;
 }
 
 // robot geometry
@@ -176,7 +177,6 @@ const double rf = 60.0;
 
 // trigonometric constants
 const double sqrt3 = sqrt(3.0);
-const double pi = 3.141592653;    // PI
 const double sin120 = sqrt3/2.0;   
 const double cos120 = -0.5;        
 const double tan60 = sqrt3;
@@ -553,9 +553,9 @@ int Sine::doloop()
 	angle = fmod(angle, 360.0);
 
 	delta_calcInverse(
-			sin(elapsedTime())*5, //x
-			cos(elapsedTime())*5, //y
-			135+elapsedTime()/4,   //z
+			sin(elapsedTime())*8, //x
+			cos(elapsedTime())*8, //y
+			135+elapsedTime()/5,   //z
 			&target1, &target2, &target3);
 	target1 = angle_to_radian(-target1);
 	target2 = angle_to_radian(-target2);
@@ -577,6 +577,9 @@ int Sine::doloop()
 	tim1 = radian_to_angle(pulse_to_radian(enc1 - mcu_msg.tim1, pid1));
 	tim2 = radian_to_angle(pulse_to_radian(enc2 - mcu_msg.tim2, pid2));
 	tim3 = radian_to_angle(pulse_to_radian(enc3 - mcu_msg.tim3, pid3));
+	if(tim1 > 100)tim1 = 0;
+	if(tim2 > 100)tim2 = 0;
+	if(tim3 > 100)tim3 = 0;
 
 	target1 = radian_to_angle(target1);
 	target2 = radian_to_angle(target2);
