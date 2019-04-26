@@ -24,7 +24,7 @@ const int ENC1=4096-512;
 const int ENC2=4096-512;
 const int ENC3=4096-512;
 
-class Sine : public ControlBase
+class deltaEx : public ControlBase
 {
 	public:
 		// ----- User Functions -----
@@ -84,7 +84,7 @@ class Sine : public ControlBase
  *
  * @return Return non-zero to indicate an error.
  */
-int Sine::initialize()
+int deltaEx::initialize()
 {
 	robot = new delta(e, f, re, rf, ENC1, ENC2, ENC3, true, true, true);
 	hw = new mtr_hw(ENC1, ENC2, ENC3, "/dev/ttyUSB0", B921600); 
@@ -131,7 +131,7 @@ int Sine::initialize()
 	return 0;
 }
 
-int Sine::start()
+int deltaEx::start()
 {
 	hw->start();
 	return 0; 
@@ -153,7 +153,7 @@ int Sine::start()
  * @return If you return 0, the control will continue to execute. If you return
  * nonzero, the control will abort.
  */
-int Sine::doloop()
+int deltaEx::doloop()
 {
 	robot->set_pid_gains(kp1, ki1, kd1, 
 			     kp2, ki2, kd2,
@@ -197,7 +197,7 @@ int Sine::doloop()
  *
  * @return Return non-zero to indicate an error.
  */
-int Sine::stop()
+int deltaEx::stop()
 {
 	hw->stop();
 	robot->reset();
@@ -211,7 +211,7 @@ int Sine::stop()
  *
  * @return Return non-zero to indicate an error.
  */
-int Sine::terminate()
+int deltaEx::terminate()
 {
 	hw->stop();
 	robot->reset();
@@ -224,7 +224,7 @@ int Sine::terminate()
  */
 int main( int argc, char *argv[] )
 {
-	Sine c;
+	deltaEx c;
 	c.run( argc, argv );
 
 	return 0;
