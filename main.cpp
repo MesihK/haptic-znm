@@ -75,6 +75,7 @@ class deltaEx : public ControlBase
 		// ----- Variables -----
 		mtr_hw *hw;
 		delta *robot;
+		int state = 0;
 };
 
 /**
@@ -159,13 +160,35 @@ int deltaEx::doloop()
 			     kp2, ki2, kd2,
 			     kp3, ki3, kd3);
 
+	double x=0, y=0, z=0;
+
+	if(elapsedTime() < 8) state = 0;
+	else if(elapsedTime() < 16) state = 1;
+	else if(elapsedTime() < 24) state = 2;
+	else if(elapsedTime() < 32) state = 3;
+
+	if(state == 0){
+		x = elapsedTime()*2;
+		y = 0;
+		z = 140;
+	} else if(state == 1){
+		x = 16;
+		y = elapsedTime()*2 - 16;
+		z = 140;
+	} else if(state == 2){
+		x = 16 - (elapsedTime()*2 - 32);
+		y = 15;
+		z = 140;
+	} else if(state == 3){
+		x = 0;
+		y = 16 - (elapsedTime()*2 - 48);
+		z = 140;
+	}
+
 	int e1, e2, e3;
 	hw->get_enc(&e1, &e2, &e3);
 	robot->set_mtr_enc(e1, e2, e3);
-	robot->set_pos(elapsedTime(),
-		       sin(elapsedTime())*8, //x
-		       cos(elapsedTime())*8, //y
-		       135+elapsedTime()/5,   //z
+	robot->set_pos(elapsedTime(), x, y, z,
 		       &v1, &v2, &v3);
 	hw->set(v1, v2, v3, curr1, curr2, curr3);
 
