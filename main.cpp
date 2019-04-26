@@ -12,6 +12,7 @@
 #include <QByteArray>
 #include "mtr_hw.h"
 #include "delta.h"
+#include "pid.h"
 
 // delta robot geometry
 const double e = 210.0;     // end effector
@@ -75,6 +76,7 @@ class deltaEx : public ControlBase
 		// ----- Variables -----
 		mtr_hw *hw;
 		delta *robot;
+		pid p1, p2, p3;
 		int state = 0;
 };
 
@@ -87,7 +89,7 @@ class deltaEx : public ControlBase
  */
 int deltaEx::initialize()
 {
-	robot = new delta(e, f, re, rf, ENC1, ENC2, ENC3, true, true, true);
+	robot = new delta(e, f, re, rf, ENC1, ENC2, ENC3, true, true, true, p1, p2, p3);
 	hw = new mtr_hw(ENC1, ENC2, ENC3, "/dev/ttyUSB0", B921600); 
 	// ----- Initializes log and control variables -----
 	// ----- Register the log variables -----
@@ -156,9 +158,9 @@ int deltaEx::start()
  */
 int deltaEx::doloop()
 {
-	robot->set_pid_gains(kp1, ki1, kd1, 
-			     kp2, ki2, kd2,
-			     kp3, ki3, kd3);
+	p1.set_gain(kp1, ki1, kd1);
+	p2.set_gain(kp2, ki2, kd2);
+	p3.set_gain(kp3, ki3, kd3);
 
 	double x=0, y=0, z=0;
 

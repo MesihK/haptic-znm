@@ -89,8 +89,8 @@ int delta::inverse(double x0, double y0, double z0, double *theta1, double *thet
 	return status;
 }
 
-float delta::puls2rad(uint16_t pulse, pid_param pid){
-	return (float)(pulse)/(float)(pid.enc)*pi*2;
+float delta::puls2rad(uint16_t pulse, int max_enc ){
+	return (float)(pulse)/(float)(max_enc)*pi*2;
 }
 
 float delta::deg2rad(float angle){
@@ -101,40 +101,10 @@ float delta::rad2deg(float rad){
 	return fmod(rad/pi*180.0,360.0);
 }
 
-float delta::puls2ang(uint16_t pulse, pid_param pid){
-	return rad2deg(puls2rad(pulse, pid));
+float delta::puls2ang(uint16_t pulse, int max_enc){
+	return rad2deg(puls2rad(pulse, max_enc));
 }
 
-float delta::pid(float target, float curr, pid_param *param, float t){
-	float err, d1, d2 = 0;
-	float d;
-	float out;
-	float dt = (float)(t - param->time); //time diff in sec.
-	param->time = t;
-
-	d1 = target - curr;
-	d2 = d1 + 2*pi;
-	if((fabs(d2) -  fabs(d1)) > 0.0001) err = d1;
-	else err = d2;
-
-	if(fabs(err) > eps){
-		param->integral = param->integral + err*dt;
-
-		if(param->integral > INTEGRAL_LIMIT) param->integral = INTEGRAL_LIMIT;
-		if(param->integral < -1*INTEGRAL_LIMIT) param->integral = -1*INTEGRAL_LIMIT;
-	}
-	if(dt > 0){
-		d = (err - param->err) / dt;
-	} else {
-		d = 0;
-	}
-
-	out = err*param->kp + param->integral*param->ki + param->kd*d; 
-
-	param->err = err;
-
-	return out;
-}
 
 void delta::set_deg(double elapsedTime,
 		    double d1, double d2, double d3,
@@ -144,9 +114,9 @@ void delta::set_deg(double elapsedTime,
 	if(reverseM2) d2 = -d2;
 	if(reverseM3) d3 = -d3;
 
-	*dac1 = pid(deg2rad(d1), enc1, &pid1, elapsedTime);
-	*dac2 = pid(deg2rad(d2), enc2, &pid2, elapsedTime);
-	*dac3 = pid(deg2rad(d3), enc3, &pid3, elapsedTime);
+	*dac1 = c1.calculate(deg2rad(d1), enc1, elapsedTime);
+	*dac2 = c2.calculate(deg2rad(d2), enc2, elapsedTime);
+	*dac3 = c3.calculate(deg2rad(d3), enc3, elapsedTime);
 
 	if(reverseM1) *dac1 = -(*dac1);
 	if(reverseM2) *dac2 = -(*dac2);
@@ -167,9 +137,9 @@ void delta::set_pos(double elapsedTime,
 	if(reverseM2) d2 = -d2;
 	if(reverseM3) d3 = -d3;
 
-	*dac1 = pid(deg2rad(d1), enc1, &pid1, elapsedTime);
-	*dac2 = pid(deg2rad(d2), enc2, &pid2, elapsedTime);
-	*dac3 = pid(deg2rad(d3), enc3, &pid3, elapsedTime);
+	*dac1 = c1.calculate(deg2rad(d1), enc1, elapsedTime);
+	*dac2 = c2.calculate(deg2rad(d2), enc2, elapsedTime);
+	*dac3 = c3.calculate(deg2rad(d3), enc3, elapsedTime);
 
 	if(reverseM1) *dac1 = -(*dac1);
 	if(reverseM2) *dac2 = -(*dac2);
@@ -199,12 +169,10 @@ void delta::get_tgt_deg(double *d1, double *d2, double *d3){
 }
 
 void delta::reset(){
-	memset(&pid1, 0, sizeof(pid_param));
-	memset(&pid2, 0, sizeof(pid_param));
-	memset(&pid3, 0, sizeof(pid_param));
-	pid1.enc = ENC1;
-	pid2.enc = ENC2;
-	pid3.enc = ENC3;
+	c1.reset();
+	c2.reset();
+	c3.reset();
+
 	enc1 = 0;
 	enc2 = 0;
 	enc3 = 0;
@@ -216,7 +184,8 @@ void delta::reset(){
 
 delta::delta(double e, double f, double re, double rf,
 		  double ENC1, double ENC2, double ENC3,
-		  bool reverseM1, bool reverseM2, bool reverseM3)
+		  bool reverseM1, bool reverseM2, bool reverseM3,
+		  controller &c1, controller &c2, controller &c3)
 	:e(e)
 	,f(f)
 	,re(re)
@@ -227,6 +196,9 @@ delta::delta(double e, double f, double re, double rf,
 	,reverseM1(reverseM1)
 	,reverseM2(reverseM2)
 	,reverseM3(reverseM3)
+	,c1(c1)
+	,c2(c2)
+	,c3(c3)
 {
 	reset();
 }
@@ -234,31 +206,15 @@ delta::delta(double e, double f, double re, double rf,
 delta::~delta(){
 }
 
-void delta::set_pid_gains(double kp1, double ki1, double kd1,
-			  double kp2, double ki2, double kd2,
-			  double kp3, double ki3, double kd3){
-	pid1.kp = kp1;
-	pid2.kp = kp2;
-	pid3.kp = kp3;
-
-	pid1.kd = kd1;
-	pid2.kd = kd2;
-	pid3.kd = kd3;
-
-	pid1.ki = ki1;
-	pid2.ki = ki2;
-	pid3.ki = ki3;
-}
-
 void delta::set_mtr_enc(int e1, int e2, int e3){
 
-	if(reverseM1) enc1 = puls2rad(ENC1 - e1, pid1);
-	else enc1 = puls2rad(e1, pid1);
+	if(reverseM1) enc1 = puls2rad(ENC1 - e1, ENC1);
+	else enc1 = puls2rad(e1, ENC1);
 
-	if(reverseM2) enc2 = puls2rad(ENC2 - e2, pid2);
-	else enc2 = puls2rad(e2, pid2);
+	if(reverseM2) enc2 = puls2rad(ENC2 - e2, ENC2);
+	else enc2 = puls2rad(e2, ENC2);
 
-	if(reverseM3) enc3 = puls2rad(ENC3 - e3, pid3);
-	else enc3 = puls2rad(e3, pid3);
+	if(reverseM3) enc3 = puls2rad(ENC3 - e3, ENC3);
+	else enc3 = puls2rad(e3, ENC3);
 }
 

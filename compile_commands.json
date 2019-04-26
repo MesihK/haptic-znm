@@ -28,11 +28,11 @@
             "-I../../zenom/znm-tools",
             "-I.",
             "-o",
-            "delta.o",
-            "delta.cpp"
+            "main.o",
+            "main.cpp"
         ],
         "directory": "/home/mesih/workspace/Zenom/zenom/examples/ng-haptic",
-        "file": "delta.cpp"
+        "file": "main.cpp"
     },
     {
         "arguments": [
@@ -98,10 +98,45 @@
             "-I../../zenom/znm-tools",
             "-I.",
             "-o",
-            "main.o",
-            "main.cpp"
+            "pid.o",
+            "pid.cpp"
         ],
         "directory": "/home/mesih/workspace/Zenom/zenom/examples/ng-haptic",
-        "file": "main.cpp"
+        "file": "pid.cpp"
+    },
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-pipe",
+            "-std=c++11",
+            "-march=x86-64",
+            "-mtune=generic",
+            "-O2",
+            "-pipe",
+            "-fstack-protector-strong",
+            "-fno-plt",
+            "-D_REENTRANT",
+            "-Wall",
+            "-W",
+            "-DQT_NO_DEBUG",
+            "-DQT_GUI_LIB",
+            "-DQT_CORE_LIB",
+            "-DQT_SHARED",
+            "-I/usr/share/qt4/mkspecs/linux-g++",
+            "-I.",
+            "-I/usr/include/qt4/QtCore",
+            "-I/usr/include/qt4/QtGui",
+            "-I/usr/include/qt4",
+            "-I../../zenom/znm-controlbase",
+            "-I../../zenom/znm-core",
+            "-I../../zenom/znm-tools",
+            "-I.",
+            "-o",
+            "delta.o",
+            "delta.cpp"
+        ],
+        "directory": "/home/mesih/workspace/Zenom/zenom/examples/ng-haptic",
+        "file": "delta.cpp"
     }
 ]

@@ -19,4 +19,5 @@ CONFIG += c++11
 SOURCES += main.cpp
 SOURCES += delta.cpp
 SOURCES += mtr_hw.cpp
+SOURCES += pid.cpp
 
