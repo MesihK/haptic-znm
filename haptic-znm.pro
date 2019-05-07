@@ -21,3 +21,6 @@ SOURCES += delta.cpp
 SOURCES += mtr_hw.cpp
 SOURCES += pid.cpp
 
+INCLUDEPATH += ../../zenom/znm-math
+DEPENDPATH += ../../zenom/znm-math
+LIBS += -L../../lib -lznm-math

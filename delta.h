@@ -20,13 +20,11 @@ class delta
 		~delta();
 
 		//set poision of haptic.>> dac1 dac2 dac3 is output to hardware 
-		void set_pos(double elapsedTime,
-			     double x, double y, double z, 
+		void set_pos(double x, double y, double z, 
 			     double *dac1, double *dac2, double *dac3 );
 
 		//set angle of haptic.>> dac1 dac2 dac3 is output to hardware 
-		void set_deg(double elapsedTime,
-			     double d1, double d2, double d3,
+		void set_deg(double d1, double d2, double d3,
 			     double *dac1, double *dac2, double *dac3 );
 
 		//get current position

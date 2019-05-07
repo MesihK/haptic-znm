@@ -125,7 +125,6 @@ int deltaEx::initialize()
 	registerControlVariable(&curr2, "curr2");
 	registerControlVariable(&curr3, "curr3");
 
-
 	// ----- Prints message in screen -----
 	std::cout
 		<< "This is a control program for delta robot"
@@ -137,6 +136,10 @@ int deltaEx::initialize()
 int deltaEx::start()
 {
 	hw->start();
+
+	p1.set_sampling_period(period());
+	p2.set_sampling_period(period());
+	p3.set_sampling_period(period());
 	return 0; 
 }
 
@@ -190,7 +193,7 @@ int deltaEx::doloop()
 	int e1, e2, e3;
 	hw->get_enc(&e1, &e2, &e3);
 	robot->set_mtr_enc(e1, e2, e3);
-	robot->set_pos(elapsedTime(), x, y, z,
+	robot->set_pos(x, y, z,
 		       &v1, &v2, &v3);
 	hw->set(v1, v2, v3, curr1, curr2, curr3);
 
@@ -226,6 +229,9 @@ int deltaEx::stop()
 {
 	hw->stop();
 	robot->reset();
+	p1.reset();
+	p2.reset();
+	p3.reset();
 	return 0;
 }
 
@@ -240,6 +246,9 @@ int deltaEx::terminate()
 {
 	hw->stop();
 	robot->reset();
+	p1.reset();
+	p2.reset();
+	p3.reset();
 	return 0;
 }
 

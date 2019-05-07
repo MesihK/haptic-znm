@@ -106,17 +106,16 @@ float delta::puls2ang(uint16_t pulse, int max_enc){
 }
 
 
-void delta::set_deg(double elapsedTime,
-		    double d1, double d2, double d3,
+void delta::set_deg(double d1, double d2, double d3,
 		    double *dac1, double *dac2, double *dac3 ){
 
 	if(reverseM1) d1 = -d1;
 	if(reverseM2) d2 = -d2;
 	if(reverseM3) d3 = -d3;
 
-	*dac1 = c1.calculate(deg2rad(d1), enc1, elapsedTime);
-	*dac2 = c2.calculate(deg2rad(d2), enc2, elapsedTime);
-	*dac3 = c3.calculate(deg2rad(d3), enc3, elapsedTime);
+	*dac1 = c1.calculate(deg2rad(d1), enc1);
+	*dac2 = c2.calculate(deg2rad(d2), enc2);
+	*dac3 = c3.calculate(deg2rad(d3), enc3);
 
 	if(reverseM1) *dac1 = -(*dac1);
 	if(reverseM2) *dac2 = -(*dac2);
@@ -127,8 +126,7 @@ void delta::set_deg(double elapsedTime,
 	tgt_d3 = d3;
 }
 
-void delta::set_pos(double elapsedTime,
-		    double x, double y, double z, 
+void delta::set_pos(double x, double y, double z, 
 		    double *dac1, double *dac2, double *dac3 ){
 	double d1,d2,d3;
 	inverse(x,y,z,&d1,&d2,&d3);
@@ -137,9 +135,9 @@ void delta::set_pos(double elapsedTime,
 	if(reverseM2) d2 = -d2;
 	if(reverseM3) d3 = -d3;
 
-	*dac1 = c1.calculate(deg2rad(d1), enc1, elapsedTime);
-	*dac2 = c2.calculate(deg2rad(d2), enc2, elapsedTime);
-	*dac3 = c3.calculate(deg2rad(d3), enc3, elapsedTime);
+	*dac1 = c1.calculate(deg2rad(d1), enc1);
+	*dac2 = c2.calculate(deg2rad(d2), enc2);
+	*dac3 = c3.calculate(deg2rad(d3), enc3);
 
 	if(reverseM1) *dac1 = -(*dac1);
 	if(reverseM2) *dac2 = -(*dac2);

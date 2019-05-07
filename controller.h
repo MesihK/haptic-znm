@@ -15,7 +15,7 @@ class controller
 
 		controller(controller_type type=C_NONE) : type(type) {};
 		virtual void reset() = 0;
-		virtual double calculate(double target, double current, double elapsedTime) = 0;
+		virtual double calculate(double target, double current) = 0;
 		controller_type type;
 };
 #endif
