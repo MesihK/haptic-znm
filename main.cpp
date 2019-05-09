@@ -55,6 +55,8 @@ class deltaEx : public ControlBase
 		double t_err2;
 		double t_err3;
 
+		double x,y,z;
+
 		// ----- Control Parameters -----
 		double kp1;
 		double kp2;
@@ -104,6 +106,10 @@ int deltaEx::initialize()
 	registerLogVariable(&v1, "V1");
 	registerLogVariable(&v2, "V2");
 	registerLogVariable(&v3, "V3");
+
+	registerLogVariable(&x, "X");
+	registerLogVariable(&y, "Y");
+	registerLogVariable(&z, "Z");
 
 	registerLogVariable(&t_err1, "t_err1");
 	registerLogVariable(&t_err2, "t_err2");
