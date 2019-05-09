@@ -171,28 +171,39 @@ int deltaEx::doloop()
 	p2.set_gain(kp2, ki2, kd2);
 	p3.set_gain(kp3, ki3, kd3);
 
-	double x=0, y=0, z=0;
+	double dt = 2;
+	if(elapsedTime() < dt) state = 0;
+	else if(elapsedTime() < dt*2) state = 1;
+	else if(elapsedTime() < dt*3) state = 2;
+	else if(elapsedTime() < dt*4) state = 3;
+	else if(elapsedTime() < dt*5) state = 4;
 
-	if(elapsedTime() < 8) state = 0;
-	else if(elapsedTime() < 16) state = 1;
-	else if(elapsedTime() < 24) state = 2;
-	else if(elapsedTime() < 32) state = 3;
-
+	double mul = 7;
+	double state_time = (elapsedTime()-dt*state);
 	if(state == 0){
-		x = elapsedTime()*2;
+		//move up little bit
+		x = 0;
+		y = 0;
+		z = state_time*5/dt;
+	} else if(state == 1){
+		//go at x direction
+		x = state_time*mul;
 		y = 0;
 		z = 5;
-	} else if(state == 1){
-		x = 16;
-		y = elapsedTime()*2 - 16;
-		z = 5;
 	} else if(state == 2){
-		x = 16 - (elapsedTime()*2 - 32);
-		y = 15;
+		//go at y direction
+		x = mul*dt;
+		y = state_time*mul;
 		z = 5;
 	} else if(state == 3){
+		//come back at x direction
+		x = mul*(dt - state_time);
+		y = mul*dt;
+		z = 5;
+	} else if(state == 4){
+		//come back at y direction
 		x = 0;
-		y = 16 - (elapsedTime()*2 - 48);
+		y = mul*(dt - state_time);
 		z = 5;
 	}
 
@@ -212,6 +223,11 @@ int deltaEx::doloop()
 	if(fabs(t_err2) > fabs(t_err2+360)) t_err2+=360;
 	t_err3 = target3 - tim3;
 	if(fabs(t_err3) > fabs(t_err3+360)) t_err3+=360;
+
+	//to remove clutter
+	if(tim1 >= 350) tim1 = 20;
+	if(tim2 >= 350) tim2 = 20;
+	if(tim3 >= 350) tim3 = 20;
 
 	if(v1 > 15) v1 = 15;
 	if(v1 < -15) v1 = -15;

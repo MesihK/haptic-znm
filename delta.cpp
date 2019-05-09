@@ -129,7 +129,7 @@ void delta::set_deg(double d1, double d2, double d3,
 void delta::set_pos(double x, double y, double z, 
 		    double *dac1, double *dac2, double *dac3 ){
 	double d1,d2,d3;
-	z += re;
+	z += 132.00; //?? empricaly found, makes motor angles = 0;
 	inverse(x,y,z,&d1,&d2,&d3);
 
 	if(reverseM1) d1 = -d1;
