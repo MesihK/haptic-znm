@@ -175,19 +175,19 @@ int deltaEx::doloop()
 	if(state == 0){
 		x = elapsedTime()*2;
 		y = 0;
-		z = 140;
+		z = 5;
 	} else if(state == 1){
 		x = 16;
 		y = elapsedTime()*2 - 16;
-		z = 140;
+		z = 5;
 	} else if(state == 2){
 		x = 16 - (elapsedTime()*2 - 32);
 		y = 15;
-		z = 140;
+		z = 5;
 	} else if(state == 3){
 		x = 0;
 		y = 16 - (elapsedTime()*2 - 48);
-		z = 140;
+		z = 5;
 	}
 
 	int e1, e2, e3;
