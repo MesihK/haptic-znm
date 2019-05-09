@@ -167,44 +167,84 @@ int deltaEx::start()
  */
 int deltaEx::doloop()
 {
+
 	p1.set_gain(kp1, ki1, kd1);
 	p2.set_gain(kp2, ki2, kd2);
 	p3.set_gain(kp3, ki3, kd3);
 
-	double dt = 2;
-	if(elapsedTime() < dt) state = 0;
-	else if(elapsedTime() < dt*2) state = 1;
-	else if(elapsedTime() < dt*3) state = 2;
-	else if(elapsedTime() < dt*4) state = 3;
-	else if(elapsedTime() < dt*5) state = 4;
+	double dt = 1.5;
+	state = elapsedTime()/dt;
+	double state_time = (elapsedTime()-dt*state)/dt;
 
-	double mul = 7;
-	double state_time = (elapsedTime()-dt*state);
 	if(state == 0){
 		//move up little bit
 		x = 0;
 		y = 0;
-		z = state_time*5/dt;
+		z = state_time*5;
 	} else if(state == 1){
-		//go at x direction
-		x = state_time*mul;
+		//cartesian test
+		x = 15*state_time;
 		y = 0;
 		z = 5;
 	} else if(state == 2){
-		//go at y direction
-		x = mul*dt;
-		y = state_time*mul;
+		x = 15;
+		y = 15*state_time;
 		z = 5;
 	} else if(state == 3){
-		//come back at x direction
-		x = mul*(dt - state_time);
-		y = mul*dt;
+		x = 15*(1 - state_time);
+		y = 15;
 		z = 5;
 	} else if(state == 4){
-		//come back at y direction
 		x = 0;
-		y = mul*(dt - state_time);
+		y = 15*(1 - state_time);
 		z = 5;
+	} else if(state == 5){
+		x = 0;
+		y = -15*state_time;
+		z = 5;
+	} else if(state == 6){
+		x = -15*state_time;
+		y = -15;
+		z = 5;
+	} else if(state == 7){
+		x = -15;
+		y = -15*(1-state_time);
+		z = 5;
+	} else if(state == 8){
+		x = -15*(1-state_time);
+		y = 0;
+		z = 5;
+	} else if(state == 9){
+		//sinusoidal test
+		x = 0;
+		y = 12*state_time;
+		z = 5;
+	} else if(state == 10){
+		x = 12*sin(state_time*pi);
+		y = 12*cos(state_time*pi);
+		z = 5+state_time*3;;
+	} else if(state == 11){
+		x = 12*sin((state_time+1)*pi);
+		y = 12*cos((state_time+1)*pi);
+		z = 8+state_time*3;
+	} else if(state == 12){
+		x = 12*sin((state_time+2)*pi);
+		y = 12*cos((state_time+2)*pi);
+		z = 11-(state_time)*3;
+	} else if(state == 13){
+		x = 12*sin((state_time+3)*pi);
+		y = 12*cos((state_time+3)*pi);
+		z = 8-(state_time)*3;
+	} else if(state == 14){
+		//sinusoidal end
+		x = 0;
+		y = 12*(1-state_time);
+		z = 5;
+	} else if(state == 15){
+		//go down
+		x = 0;
+		y = 0;
+		z = (1-state_time)*5;
 	}
 
 	int e1, e2, e3;
@@ -218,11 +258,8 @@ int deltaEx::doloop()
 	robot->get_tgt_deg(&target1, &target2, &target3);
 
 	t_err1 = target1 - tim1;
-	if(fabs(t_err1) > fabs(t_err1+360)) t_err1+=360;
 	t_err2 = target2 - tim2;
-	if(fabs(t_err2) > fabs(t_err2+360)) t_err2+=360;
 	t_err3 = target3 - tim3;
-	if(fabs(t_err3) > fabs(t_err3+360)) t_err3+=360;
 
 	//to remove clutter
 	if(tim1 >= 350) tim1 = 20;
